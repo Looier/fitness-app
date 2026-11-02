@@ -215,3 +215,28 @@ main.enter>*{animation:enter .45s cubic-bezier(.2,.8,.2,1) backwards}main.enter>
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 /* splash */
 .splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#0b0c10;color:#f3f5f7;font:800 28px system-ui;letter-spacing:-.02em}.splash img{width:96px;height:96px;border-radius:26px;box-shadow:0 20px 50px -14px #19d3b4}
+/* v2.2 figures */
+.fig svg{display:block;width:100%;height:auto}
+.fig{background:radial-gradient(120% 90% at 50% 100%,color-mix(in srgb,var(--mc,#c8f03c) 18%,transparent),transparent 70%),var(--card2,rgba(255,255,255,.04));border-radius:18px;padding:6px 8px;margin:4px 0 10px}
+.fig.big{width:100%;max-width:420px;margin:0 auto 12px}
+.fig.sm{max-width:340px;margin:6px auto 10px}
+.fig.rm{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.fig .near path,.fig .far path,.th .near path,.th .far path{fill:none;stroke:var(--c1,#c8f03c);stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+.far{opacity:.45}
+circle.fhd{fill:var(--c1,#c8f03c)}
+.fe *{stroke:#9aa3b2;fill:#9aa3b2}
+.fe .pl{fill:#9aa3b2}
+.fl{stroke:currentColor;opacity:.25;stroke-width:1.5}
+.fp,.fpl,.fpt,.fw{stroke:#5b6577;fill:none;stroke-width:3;stroke-linecap:round}
+.th{width:54px;height:46px;flex:none;border-radius:12px;background:var(--card2,rgba(255,255,255,.05));color:var(--mut,#888)}
+.th .near path,.th .far path{stroke-width:6}
+.ib{font-size:.85em;opacity:.7;margin-left:2px}
+.feel{margin:10px 0 6px}
+.mist ul{margin:4px 0 8px;padding-left:20px}
+.mist li{margin:2px 0}
+.eh{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.eh div{background:var(--card2,rgba(255,255,255,.05));border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-size:.9em}
+.yt{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:8px 14px;border-radius:999px;background:#ff3b30;color:#fff;font-weight:600;text-decoration:none}
+.sh.how{max-height:88vh;overflow:auto}
+.sh .row2{display:flex;gap:8px;margin-top:12px}.sh .row2 button{flex:1}
+.yt{display:flex;width:fit-content;margin:10px 0 8px}

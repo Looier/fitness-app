@@ -38,3 +38,8 @@ Dark-first design system (lime→teal accent, light/auto theme in Settings), her
 ## Deploy / dev
 Live: https://looier.github.io/fitness-app/ (built `dist/` is pushed to the `gh-pages` branch; `.github/workflows/deploy.yml` is kept locally for Actions deploys once a token with `workflow` scope is used).
 Vite `base` is `/fitness-app/`, so local dev/preview is at http://localhost:5181/fitness-app/.
+
+## v2.2
+- Animated stick-figure demo for every exercise (detail page, runner how-to sheet via ⓘ, thumbnails in library/quick-log).
+- Rewritten how-to: plain steps, "Feel it in", common mistakes, easier/harder options, Watch-on-YouTube link.
+- Reduced-motion shows start/finish poses side by side.

@@ -1,10 +1,12 @@
 import './style.css';
 import { WORKOUTS, planFor, phasesFor, iso, parse, e1rm, incFor, Day, Phase } from './program';
 import { EX, LIB, MUSCLES, forMuscle, altsFor, ROTATE, isLoad, Ex, Muscle } from './library';
+import { figInner, figFrame, VB, FIG, hasFig } from './figures';
+import { HOW } from './howto';
 import { I, ring, rings3, empty, DEFS, MC } from './ui';
 import { all, put, get, del, exportAll, importAll, Session, Checkin, Body, Settings, SetLog } from './db';
 
-const VERSION = '2.1';
+const VERSION = '2.2';
 const app = document.getElementById('app')!;
 const $ = (s: string) => app.querySelector(s) as HTMLElement;
 const today = () => iso(new Date());
@@ -22,7 +24,7 @@ let mode: 'tabs' | 'runner' | 'timer' | 'quick' | 'detail' = 'tabs';
 interface Draft { date: string; workout: 'A' | 'B'; title: string; ex: Record<string, SetLog[]>; hints: Record<string, string>; started: number; groups?: string[][] }
 interface Quick { title: string; ex: Record<string, SetLog[]>; order: string[]; started: number; q: string }
 let draft: Draft | null = null; let Q: Quick | null = null;
-let restEnd = 0; let progEx = 'goblet'; let swapFor: string | null = null;
+let restEnd = 0; let progEx = 'goblet'; let swapFor: string | null = null; let howFor: string | null = null;
 let libM: Muscle | null = null; let libQ = ''; let detailId = 'goblet'; let detailBack: typeof mode = 'tabs';
 
 // ---------- sound / vibrate / wake lock / toast ----------
@@ -174,10 +176,34 @@ function setRow(ctx: 'r' | 'q', id: string, si: number, s: SetLog, gi = 0, pr = 
   const k = `${ctx}${id}${si}`;
   return `<div class="set ${s.done ? 'done' : ''} ${popKey === k ? 'pop' : ''}"><span class="sn">${isPR ? `<span class="prI">${I.trophy}</span>` : si + 1}</span>${mid}<button class="chk" data-a="done" ${A} data-g="${gi}" aria-label="done">${I.check}</button></div>`;
 }
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+function fig(id: string, cls = 'fig') {
+  if (!hasFig(id)) return '';
+  if (RM.matches && FIG[id].k.length > 1) return `<div class="${cls} rm"><svg viewBox="${VB}" role="img" aria-label="start">${figInner(id, 0)}</svg><svg viewBox="${VB}" role="img" aria-label="finish">${figInner(id, 1)}</svg></div>`;
+  return `<div class="${cls}"><svg viewBox="${VB}" data-fig="${id}" role="img" aria-label="${esc(ex(id).name)} demo">${figInner(id, 0)}</svg></div>`;
+}
+const thumb = (id: string) => hasFig(id) ? `<svg class="th" viewBox="4 8 112 88" aria-hidden="true">${figInner(id, FIG[id].k.length > 2 ? 'mid' : 1)}</svg>` : '';
+function howHtml(e: Ex) {
+  const h = HOW[e.id]; const steps = h ? h.s : e.cues.split('|');
+  const yt = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(`how to ${e.name.replace(/\(.*?\)/g, '')} proper form`);
+  return `<ol class="cues">${steps.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
+  <p class="feel"><b>Feel it in:</b> ${[...e.prim, ...e.sec].map(m => MN[m]).filter(Boolean).join(', ')}</p>
+  ${h ? `<div class="mist"><b>Common mistakes</b><ul>${h.m.map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>
+  <div class="eh"><div><b>Easier</b><span>${esc(h.e)}</span></div><div><b>Harder</b><span>${esc(h.h)}</span></div></div>` : ''}
+  <a class="yt" href="${yt}" target="_blank" rel="noopener">▶ Watch on YouTube</a>`;
+}
+let rafOn = false;
+function animate() {
+  if (rafOn) return; rafOn = true; const t0 = performance.now();
+  const step = (t: number) => { const els = app.querySelectorAll<SVGElement>('svg[data-fig]');
+    if (!els.length) { rafOn = false; return; }
+    els.forEach(el => { el.innerHTML = figFrame(el.dataset.fig!, Math.max(0, t - t0)); }); requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
 function exBlock(ctx: 'r' | 'q', id: string, list: SetLog[], gi = 0, hint = '') {
   const e = ex(id), pr = best(id), hasPR = list.some(s => s.done && pr > 0 && score(e, s) > pr);
   const nd = list.filter(s => s.done).length;
-  return `<div class="exb"><div class="exh"><span class="eqi" style="--mc:${MC[e.prim[0]] || '#888'}">${eqIc(e)}</span><button class="exn" data-a="info" data-id="${id}">${star(e)}${esc(e.name)} <small>${e.target}${e.kind === 'reps' ? ' reps' : ''} · ${nd}/${list.length}</small></button>
+  return `<div class="exb"><div class="exh"><span class="eqi" style="--mc:${MC[e.prim[0]] || '#888'}">${eqIc(e)}</span><button class="exn" data-a="howto" data-id="${id}">${star(e)}${esc(e.name)} <span class="ib">ⓘ</span> <small>${e.target}${e.kind === 'reps' ? ' reps' : ''} · ${nd}/${list.length}</small></button>
    ${ctx === 'r' ? `<button class="sm swap ic2" data-a="swap" data-id="${id}" aria-label="swap">${I.swap}<span>Swap</span></button>` : `<button class="sm swap ic2" data-a="qrm" data-id="${id}" aria-label="remove">${I.x}</button>`}</div>
    <div class="last">${lastHint(id)}${hasPR ? ` <span class="pr">${I.trophy} PR!</span>` : ''}</div>${hint ? `<div class="hint">${hint}</div>` : ''}
    <div class="sets">${list.map((s, si) => setRow(ctx, id, si, s, gi, pr)).join('')}</div>
@@ -252,15 +278,19 @@ function vRunner() {
   });
   if (p.sets < 3) h += `<small class="mut">${p.deload ? 'Deload week' : 'Weeks 1–2'}: ${p.sets} sets.</small>`;
   h += restBar();
+  if (howFor) h += howSheet();
   if (swapFor) { const alts = altsFor(swapFor).slice(0, 8);
     h += `<div class="sheet"><div class="sh"><span class="grab"></span><h3>Swap ${esc(ex(swapFor).name)} for…</h3><small class="mut">Same muscles – keeps it fresh</small>
     ${alts.map(a => `<button class="li" data-a="swapto" data-id="${a.id}"><span class="eqi" style="--mc:${MC[a.prim[0]]}">${eqIc(a)}</span><span class="lt2">${star(a)}<b>${esc(a.name)}</b><small>${mus(a)}</small></span>${dots(a.diff)}</button>`).join('')}
     <button class="sm wide" data-a="swapx">Cancel</button></div></div>`; }
   return h;
 }
+function howSheet() { const e = ex(howFor!);
+  return `<div class="sheet" data-a="howx"><div class="sh how" data-a="nop"><span class="grab"></span><h3>${esc(e.name)}</h3>${fig(e.id, 'fig sm')}${howHtml(e)}
+  <div class="row2"><button class="sm" data-a="info" data-id="${e.id}">Full details</button><button class="sm go" data-a="howx">Got it</button></div></div></div>`; }
 function pickRow(e: Ex) {
   const on = !!Q?.ex[e.id];
-  return `<button class="li pick ${on ? 'on' : ''}" data-a="qtoggle" data-id="${e.id}"><span class="tk">${I.check}</span><span class="lt2">${star(e)}<b>${esc(e.name)}</b><small>${lastSession(e.id) ? lastHint(e.id) : e.prim.map(m => MN[m]).join(', ')}</small></span><span class="mdot" style="--mc:${MC[e.prim[0]]}"></span></button>`;
+  return `<button class="li pick ${on ? 'on' : ''}" data-a="qtoggle" data-id="${e.id}"><span class="tk">${I.check}</span>${thumb(e.id)}<span class="lt2">${star(e)}<b>${esc(e.name)}</b><small>${lastSession(e.id) ? lastHint(e.id) : e.prim.map(m => MN[m]).join(', ')}</small></span><span class="mdot" style="--mc:${MC[e.prim[0]]}"></span></button>`;
 }
 function pickList() {
   const q = Q!.q.trim().toLowerCase();
@@ -310,7 +340,7 @@ function bodyMap() {
 }
 const ex2m = (m: string) => !!libM && forMuscle(libM).slice(0, 6).some(e => e.sec.includes(m as Muscle));
 function libRow(e: Ex) {
-  return `<div class="li lib"><button class="lt" data-a="info" data-id="${e.id}"><span class="eqi" style="--mc:${MC[e.prim[0]]}">${eqIc(e)}</span><span class="lt2"><b>${esc(e.name)}${e.best ? ` <span class="bb">${I.star}Best</span>` : ''}</b>${mchips(e)}</span>${dots(e.diff)}</button>
+  return `<div class="li lib"><button class="lt" data-a="info" data-id="${e.id}">${thumb(e.id) || `<span class="eqi" style="--mc:${MC[e.prim[0]]}">${eqIc(e)}</span>`}<span class="lt2"><b>${esc(e.name)}${e.best ? ` <span class="bb">${I.star}Best</span>` : ''}</b>${mchips(e)}</span>${dots(e.diff)}</button>
   <button class="sm add ${Q?.ex[e.id] ? 'on' : ''}" data-a="addtoday" data-id="${e.id}" aria-label="Add to today">${Q?.ex[e.id] ? I.check : I.plus}</button></div>`;
 }
 function vLib() {
@@ -331,10 +361,10 @@ function vDetail() {
   const pr = best(e.id), alts = altsFor(e.id).slice(0, 4);
   const u = isLoad(e) ? 'kg' : e.kind === 'time' ? 's' : e.kind === 'cardio' ? 'min' : 'reps';
   return `<header class="hd run"><button class="sm ic" data-a="dback" aria-label="Back">${I.back}</button><span></span><button class="go sm" data-a="addtoday" data-id="${e.id}">${I.plus} Add to today</button></header>
-  <section class="dhero" style="--mc:${MC[e.prim[0]]}"><span class="eqi big">${eqIc(e)}</span><h1>${esc(e.name)}</h1>${mchips(e)}
+  <section class="dhero" style="--mc:${MC[e.prim[0]]}">${fig(e.id, 'fig big') || `<span class="eqi big">${eqIc(e)}</span>`}<h1>${esc(e.name)}</h1>${mchips(e)}
   <div class="stats"><div><b>${['', 'Beginner', 'Inter&shy;mediate', 'Advanced'][e.diff]}</b><small>level</small></div><div><b>${e.target}</b><small>${e.kind === 'reps' ? 'reps' : e.kind === 'time' ? 'seconds' : 'minutes'}</small></div><div><b>${rows.length}</b><small>sessions</small></div></div>
   ${e.best ? `<span class="bb lg">${I.star}Best bang for buck</span>` : ''}</section>
-  <div class="card"><h3>How to</h3><ol class="cues">${e.cues.split('|').map(c => `<li>${esc(c)}</li>`).join('')}</ol>
+  <div class="card"><h3>How to</h3>${howHtml(e)}
   <small class="mut">Starting point: ${isLoad(e) ? e.w + ' kg × ' : ''}${e.r}${e.kind === 'time' ? ' s' : e.kind === 'cardio' ? ' min' : ' reps'}</small></div>
   <div class="card"><h3>History ${pr ? `<span class="pr">${I.trophy} Best ${isLoad(e) ? 'est. 1RM ' + Math.round(pr * 10) / 10 + ' kg' : Math.round(pr)}</span>` : ''}</h3>
   ${rows.length ? chart(isLoad(e) ? [{ pts, c: 'var(--c1)', l: 'Top weight' }, { pts: pts2, c: 'var(--c2)', l: 'Est. 1RM' }] : [{ pts, c: 'var(--c1)', l: e.kind === 'time' ? 'Best hold (s)' : e.kind === 'cardio' ? 'Minutes' : 'Best reps' }], u) : empty(I.chart, 'Not logged yet', 'Log it once and your trend appears here.')}
@@ -418,6 +448,7 @@ function render() {
   const key = mode + (mode === 'tabs' ? tab : mode === 'detail' ? detailId : '');
   app.innerHTML = DEFS + html; popKey = '';
   if (key !== lastView) { app.querySelector('main,.timer')?.classList.add('enter'); lastView = key; }
+  animate();
 }
 // ---------- events ----------
 async function saveCheckin(patch: Partial<Checkin>) { const c = { ...(checkins[today()] || { date: today() }), ...patch }; checkins[today()] = c; await put('checkins', c); }
@@ -461,6 +492,8 @@ app.addEventListener('click', async ev => {
       keepScroll(render); break; }
     case 'setadd': { const l = listOf(ctx, id); const last = l[l.length - 1]; l.push({ w: last.w, r: last.r, done: false }); await persist(ctx); keepScroll(render); break; }
     case 'setrm': { const l = listOf(ctx, id); if (l.length > 1) l.pop(); await persist(ctx); keepScroll(render); break; }
+    case 'howto': howFor = id; keepScroll(render); break;
+    case 'howx': howFor = null; keepScroll(render); break;
     case 'swap': swapFor = id; render(); break;
     case 'swapx': swapFor = null; render(); break;
     case 'swapto': { const d = draft!, from = swapFor!; swapFor = null; if (d.ex[id]) return render();
@@ -492,7 +525,7 @@ app.addEventListener('click', async ev => {
     case 'addtoday': { if (!Q) Q = { title: 'Workout', ex: {}, order: [], started: Date.now(), q: '' };
       if (Q.ex[id]) { toast('Already in today’s log'); return; } addQ(id); await put('kv', Q, 'quick');
       toast(`Added ${ex(id).name} – open “What did you do?”`); if ((mode as string) === 'detail') { mode = 'quick'; render(); scrollTo(0, 0); } else keepScroll(render); break; }
-    case 'info': detailBack = (mode as string) === 'detail' ? detailBack : (mode as typeof detailBack); detailId = id; mode = 'detail'; render(); scrollTo(0, 0); break;
+    case 'info': howFor = null; detailBack = (mode as string) === 'detail' ? detailBack : (mode as typeof detailBack); detailId = id; mode = 'detail'; render(); scrollTo(0, 0); break;
     case 'dback': mode = (detailBack as string) === 'detail' ? 'tabs' : detailBack; render(); break;
     // timer
     case 'tback': mode = tm!.back; if (mode === 'tabs') wake(false); tm = null; render(); break;
